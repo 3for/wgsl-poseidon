@@ -80,6 +80,11 @@ pub async fn single_buffer_compute(
     // Gets the size in bytes of the buffer.
     let slice_size = num_inputs * std::mem::size_of::<u32>();
     let size = slice_size as wgpu::BufferAddress;
+    let sw = Stopwatch::start_new();
+
+    // Gets the size in bytes of the buffers.
+    let slice_size_a = input_bytes.len() * std::mem::size_of::<u8>();
+    let size_a = slice_size_a as wgpu::BufferAddress;
 
     // Instantiates buffer without data.
     // `usage` of buffer specifies how it can be used:
@@ -149,6 +154,7 @@ pub async fn single_buffer_compute(
         let data = buffer_slice.get_mapped_range();
         // Since contents are got in bytes, this converts these bytes back to u32
         let result: Vec<u32> = bytemuck::cast_slice(&data).to_vec();
+        println!("GPU took {}ms", sw.elapsed_ms());
 
         // With the current interface, we have to make sure all mapped views are
         // dropped before we unmap the buffer.

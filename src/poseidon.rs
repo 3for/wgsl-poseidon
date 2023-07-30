@@ -3,8 +3,10 @@ use ark_bn254::Fr;
 use stopwatch::Stopwatch;
 use num_bigint::BigUint;
 //use std::str::FromStr;
-use crate::bn254::get_fr;
+use crate::bn254;
+use crate::vesta;
 use crate::gpu::double_buffer_compute;
+use crate::gpu::single_buffer_compute;
 use crate::wgsl::concat_files;
 use crate::utils::{ bigints_to_bytes, u32s_to_bigints };
 use poseidon_ark::{ Poseidon, load_constants };
@@ -58,7 +60,7 @@ pub fn test_poseidon() {
     let mut rng = rand::thread_rng();
     for _ in 0..num_inputs {
         let random_bytes = rng.gen::<[u8; 32]>();
-        let a = BigUint::from_bytes_be(random_bytes.as_slice()) % get_fr();
+        let a = BigUint::from_bytes_be(random_bytes.as_slice()) % bn254::get_fr();
         inputs.push(a);
     }
 
@@ -122,5 +124,123 @@ pub fn test_poseidon() {
     //println!("Result from GPU: {:?}", result.clone());
     //assert_eq!(result[0], expected_final_state[0]);
     assert_eq!(result, expected_hashes);
+
+}
+
+#[test]
+pub fn test_mulmod_BN254() { // For BN254 Scalar field
+    let num_inputs = 256*55; //256 * 64;
+    let num_x_workgroups = 256*64; //256;
+    let modulo_p = bn254::get_fr();
+
+    println!("Computing {} Poseidon hashes in Rust / WebGPU", num_inputs);
+
+    let mut inputs: Vec<BigUint> = Vec::with_capacity(num_inputs);
+
+
+    let mut rng = rand::thread_rng();
+    for _ in 0..num_inputs {
+        let random_bytes = rng.gen::<[u8; 32]>();
+        let a = BigUint::from_bytes_be(random_bytes.as_slice()) % modulo_p.clone();
+        inputs.push(a);
+    }
+
+    let t = 2;
+
+    let sw = Stopwatch::start_new();
+    let expected_result: Vec<BigUint> = inputs.iter().map(|a| ((a.clone() * a.clone()) % modulo_p.clone()).into()).collect();
+    println!("CPU took {}ms", sw.elapsed_ms());
+
+    let buf = bigints_to_bytes(inputs.clone());
+
+    // Passing the constants as hardcoded WGSL code is to inefficient
+    //let wgsl = gen_poseidon_t2_wgsl();
+    let wgsl = concat_files(
+        vec![
+            "src/wgsl/structs.wgsl",
+            "src/wgsl/storage.wgsl",
+            "src/wgsl/bigint.wgsl",
+            "src/wgsl/fr.wgsl",
+            "src/wgsl/mul_mod_BN254.wgsl"
+        ]
+    );
+
+    //println!("{}", wgsl);
+
+    // Send to the GPU
+    let result = pollster::block_on(single_buffer_compute(&wgsl, &buf, num_x_workgroups)).unwrap();
+
+    let result = u32s_to_bigints(result);
+    /*println!("Input: {:?}", inputs.clone());
+    println!("Result from GPU: {:?}", result.clone());
+    println!("Result from CPU: {:?}", expected_result.clone());*/
+    for i in 0..num_inputs {
+        if result[i] != expected_result[i] {
+            println!("index:{}, input:{}, CPU Result:{}, GPU Result: {}", i, inputs[i], expected_result[i], result[i])
+        }
+    }
+
+    //assert_eq!(result[0], expected_final_state[0]);
+    assert_eq!(result, expected_result);
+
+}
+
+
+
+#[test]
+pub fn test_mulmod_Vesta() { // For Vesta Scalar field
+    let num_inputs = 257; //256 * 64;
+    let num_x_workgroups = 256; //256;
+    let modulo_p = vesta::get_fr();
+
+    println!("Computing {} Poseidon hashes in Rust / WebGPU", num_inputs);
+
+    let mut inputs: Vec<BigUint> = Vec::with_capacity(num_inputs);
+
+
+    let mut rng = rand::thread_rng();
+    for _ in 0..num_inputs {
+        let random_bytes = rng.gen::<[u8; 32]>();
+        let a = BigUint::from_bytes_be(random_bytes.as_slice()) % modulo_p.clone();
+        inputs.push(a);
+    }
+
+    let t = 2;
+
+    let sw = Stopwatch::start_new();
+    let expected_result: Vec<BigUint> = inputs.iter().map(|a| ((a.clone() * a.clone()) % modulo_p.clone()).into()).collect();
+    println!("CPU took {}ms", sw.elapsed_ms());
+
+    let buf = bigints_to_bytes(inputs.clone());
+
+    // Passing the constants as hardcoded WGSL code is to inefficient
+    //let wgsl = gen_poseidon_t2_wgsl();
+    let wgsl = concat_files(
+        vec![
+            "src/wgsl/structs.wgsl",
+            "src/wgsl/storage.wgsl",
+            "src/wgsl/bigint.wgsl",
+            "src/wgsl/field_Vesta.wgsl",
+            "src/wgsl/mul_mod_Vesta.wgsl"
+        ]
+    );
+
+    //println!("{}", wgsl);
+
+    // Send to the GPU
+    let result = pollster::block_on(single_buffer_compute(&wgsl, &buf, num_x_workgroups)).unwrap();
+
+    let result = u32s_to_bigints(result);
+    /*println!("Input: {:?}", inputs.clone());
+    println!("Result from GPU: {:?}", result.clone());
+    println!("Result from CPU: {:?}", expected_result.clone());*/
+    for i in 0..num_inputs {
+        if result[i] != expected_result[i] {
+            println!("index:{}, input:{}, CPU Result:{}, GPU Result: {}", i, inputs[i], expected_result[i], result[i])
+        }
+    }
+
+    //assert_eq!(result[0], expected_final_state[0]);
+    assert_eq!(result, expected_result);
 
 }

@@ -16,9 +16,11 @@
     "assert": "^2.0.0",
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.0",
+    "events": "^3.3.0",
     "os-browserify": "^0.3.0",
     "parcel": "^2.9.3",
     "process": "^0.11.10",
-    "stream-browserify": "^3.0.0"
+    "stream-browserify": "^3.0.0",
+    "typescript": "^5.1.6"
   }
 }
