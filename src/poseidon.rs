@@ -189,7 +189,7 @@ pub fn test_mulmod_BN254() { // For BN254 Scalar field
 
 #[test]
 pub fn test_mulmod_Vesta() { // For Vesta Scalar field
-    let num_inputs = 257; //256 * 64;
+    let num_inputs = 256; //256 * 64;
     let num_x_workgroups = 256; //256;
     let modulo_p = vesta::get_fr();
 
