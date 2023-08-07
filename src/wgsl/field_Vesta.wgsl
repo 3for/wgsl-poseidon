@@ -191,7 +191,7 @@ fn get_higher_with_slack(a: ptr<function, BigInt512>) -> BaseField {
     return out;
 }
 
-// once reduces once (assumes that 0 <= a < 2 * mod)
+// once reduces once (assumes that 0 <= a < 3 * mod)
 fn field_reduce(a: ptr<function, BigInt256>) -> BaseField {
     var res: BigInt256;
     var BASE_MODULUS = fr_get_base_module();
@@ -199,7 +199,13 @@ fn field_reduce(a: ptr<function, BigInt256>) -> BaseField {
     if (underflow == 1u) {
         return *a;
     } else {
-        return res;
+        var res2: BigInt256;
+        underflow = bigint_sub(&res, &BASE_MODULUS, &res2);
+        if (underflow == 1u) {
+            return res;
+        } else {
+            return res2;
+        }
     }
 }
 
